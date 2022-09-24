@@ -5,13 +5,13 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 var parserTests = []struct {
-	spec    string
-	objects []Object
+	spec string
+	doc  *Doc
 }{
-
 	{
 		spec: `
 rule test
@@ -19,83 +19,186 @@ rule test
 	out iron 1
 end
 `,
-
-		objects: []Object{
-			{
-				Type: "rule",
-				Name: "test",
-				Directives: []Directive{
-					{
-						Name:    "in",
-						Args:    []string{"iron_ore", "3"},
-						ArgText: "iron_ore 3",
-						Line:    2,
+		doc: &Doc{
+			Version: 1,
+			Objects: []Object{
+				{
+					Type: "rule",
+					Name: "test",
+					Directives: []Directive{
+						{
+							Name:     "in",
+							Args:     []string{"iron_ore", "3"},
+							ArgText:  "iron_ore 3",
+							Comments: []string{},
+						},
+						{
+							Name:     "out",
+							Args:     []string{"iron", "1"},
+							ArgText:  "iron 1",
+							Comments: []string{},
+						},
 					},
-					{
-						Name:    "out",
-						Args:    []string{"iron", "1"},
-						ArgText: "iron 1",
-						Line:    3,
-					},
+					Comments:         []string{},
+					TrailingComments: []string{},
 				},
-				Line: 1,
 			},
+			Comments:         []string{},
+			TrailingComments: []string{},
 		},
 	},
 
 	{
 		spec: `
-	rule test
-		#comment
-		in iron_ore 3
-		out iron 3
-	end
-	#comment
-	rule test2
-		in iron_ore 1
-		out iron 1
-	end
-	#comment
-	`,
+rule test
+	# directive comment
+	in iron_ore 3
+	out iron 3
+	# trailing directive comment
+end
 
-		objects: []Object{
-			{
-				Type: "rule",
-				Name: "test",
-				Directives: []Directive{
-					{
-						Name:    "in",
-						Args:    []string{"iron_ore", "3"},
-						ArgText: "iron_ore 3",
-						Line:    3,
+# test2 comment
+rule test2
+	in iron_ore 1
+	out iron 1
+end
+	`,
+		doc: &Doc{
+			Version: 1,
+			Objects: []Object{
+				{
+					Type: "rule",
+					Name: "test",
+					Directives: []Directive{
+						{
+							Name:    "in",
+							Args:    []string{"iron_ore", "3"},
+							ArgText: "iron_ore 3",
+							Comments: []string{
+								"directive comment",
+							},
+						},
+						{
+							Name:     "out",
+							Args:     []string{"iron", "3"},
+							ArgText:  "iron 3",
+							Comments: []string{},
+						},
 					},
-					{
-						Name:    "out",
-						Args:    []string{"iron", "3"},
-						ArgText: "iron 3",
-						Line:    4,
+					Comments: []string{},
+					TrailingComments: []string{
+						"trailing directive comment",
 					},
 				},
-				Line: 1,
+				{
+					Type: "rule",
+					Name: "test2",
+					Directives: []Directive{
+						{
+							Name:     "in",
+							Args:     []string{"iron_ore", "1"},
+							ArgText:  "iron_ore 1",
+							Comments: []string{},
+						},
+						{
+							Name:     "out",
+							Args:     []string{"iron", "1"},
+							ArgText:  "iron 1",
+							Comments: []string{},
+						},
+					},
+					Comments: []string{
+						"test2 comment",
+					},
+					TrailingComments: []string{},
+				},
 			},
-			{
-				Type: "rule",
-				Name: "test2",
-				Directives: []Directive{
-					{
-						Name:    "in",
-						Args:    []string{"iron_ore", "1"},
-						ArgText: "iron_ore 1",
-						Line:    8,
+			Comments:         []string{},
+			TrailingComments: []string{},
+		},
+	},
+
+	{
+		spec: `
+# This is a comment about the document
+# Since there is an empty line between it and
+# the object comment below
+
+# Define some resources
+resource iron_ore
+	name Iron Ore
+end
+
+resource iron_ingot
+	name Iron Ingot
+end
+
+# Define some production rules
+rule smelter
+	in iron_ore 3
+	out iron_ingot 3
+end
+
+rule blacksmith
+	in iron_ingot 1
+	out horseshoe 1
+end
+
+# a trailing document comment
+`,
+		doc: &Doc{
+			Version: 1,
+			Comments: []string{
+				"This is a comment about the document",
+				"Since there is an empty line between it and",
+				"the object comment below",
+			},
+			Objects: []Object{
+				{
+					Comments: []string{
+						"Define some resources",
 					},
-					{
-						Name:    "out",
-						Args:    []string{"iron", "1"},
-						ArgText: "iron 1",
-						Line:    9,
+					Type: "resource",
+					Name: "iron_ore",
+					Directives: []Directive{
+						{Name: "name", Args: []string{"Iron", "Ore"}, ArgText: "Iron Ore", Comments: []string{}},
 					},
+					TrailingComments: []string{},
 				},
-				Line: 7,
+				{
+					Comments: []string{},
+					Type:     "resource",
+					Name:     "iron_ingot",
+					Directives: []Directive{
+						{Name: "name", Args: []string{"Iron", "Ingot"}, ArgText: "Iron Ingot", Comments: []string{}},
+					},
+					TrailingComments: []string{},
+				},
+				{
+					Comments: []string{
+						"Define some production rules",
+					},
+					Type: "rule",
+					Name: "smelter",
+					Directives: []Directive{
+						{Name: "in", Args: []string{"iron_ore", "3"}, ArgText: "iron_ore 3", Comments: []string{}},
+						{Name: "out", Args: []string{"iron_ingot", "3"}, ArgText: "iron_ingot 3", Comments: []string{}},
+					},
+					TrailingComments: []string{},
+				},
+				{
+					Comments: []string{},
+					Type:     "rule",
+					Name:     "blacksmith",
+					Directives: []Directive{
+						{Name: "in", Args: []string{"iron_ingot", "1"}, ArgText: "iron_ingot 1", Comments: []string{}},
+						{Name: "out", Args: []string{"horseshoe", "1"}, ArgText: "horseshoe 1", Comments: []string{}},
+					},
+					TrailingComments: []string{},
+				},
+			},
+			TrailingComments: []string{
+				"a trailing document comment",
 			},
 		},
 	},
@@ -105,24 +208,13 @@ func TestParser(t *testing.T) {
 	for _, tc := range parserTests {
 		t.Run("", func(t *testing.T) {
 			p := NewParser(strings.NewReader(tc.spec))
-
-			objects := []Object{}
-
-			for p.Next() {
-				obj := p.Object()
-				if obj == nil {
-					t.Errorf("unexpected nil object found")
-					return
-				}
-				objects = append(objects, *obj)
-			}
-
-			if p.Err() != nil {
-				t.Errorf("unexpected error: %v", p.Err())
+			doc, err := p.Parse()
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
 				return
 			}
 
-			if diff := cmp.Diff(tc.objects, objects); diff != "" {
+			if diff := cmp.Diff(tc.doc, doc, cmpopts.IgnoreFields(Object{}, "Line"), cmpopts.IgnoreFields(Directive{}, "Line")); diff != "" {
 				t.Errorf("Parse() mismatch (-want +got):\n%s", diff)
 			}
 		})

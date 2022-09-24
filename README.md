@@ -2,10 +2,9 @@
 
 A line-oriented object notation parser
 
+[![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white)](https://pkg.go.dev/github.com/iand/loon)
 [![Check Status](https://github.com/iand/loon/actions/workflows/check.yml/badge.svg)](https://github.com/iand/loon/actions/workflows/check.yml)
 [![Test Status](https://github.com/iand/loon/actions/workflows/test.yml/badge.svg)](https://github.com/iand/loon/actions/workflows/test.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/iand/loon)](https://goreportcard.com/report/github.com/iand/loon)
-[![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white)](https://pkg.go.dev/github.com/iand/loon)
 
 ## Overview
 
@@ -27,11 +26,21 @@ A directive has a name and zero or more arguments which are simply space separat
 Notes:
 
  - All leading and trailing whitespace is ignored
- - Lines starting with `#` are comments and ignored
+ - Lines starting with `#` are comments. 
+ - The first line of a loon document may optionally include a syntax version tag written as `@version <num>`. Only `@version 1` is supported currently. Documents without a version tag are assumed to be version 1. 
+ - Comments are preserved when parsing and will round trip when printed:
+    - Comments before an object or directive are assumed to belong to the object or directive.
+    - Comments before the first object in a document followed by an empty line are assumed to belong to the document. 
+    - Comments after the last directive are associated with the object as trailing comments.
+    - Comments after the last object are associated with the document as trailing comments.
 
 An example:
 
 ```
+# This is a comment about the document
+# Since there is an empty line between it and
+# the object comment below
+
 # Define some resources
 resource iron_ore
 	name Iron Ore
@@ -51,8 +60,38 @@ rule blacksmith
 	in iron_ingot 1
 	out horseshoe 1
 end
+
+# a trailing document comment
 ```
 
+## Usage
+
+```Go
+import (
+	"os"
+	"log"
+
+	"github.com/iand/loon"
+)
+
+func main() {
+	f, err := os.Open("rules.loon")
+	if err != nil {
+		log.Fatalf("open: %v", err)
+	}
+	defer f.Close()
+
+	p := NewParser(f)
+	doc, err := p.Parse()
+	if err != nil {
+		log.Fatalf("parse: %v", err)
+	}
+
+	for _, o := range doc.Objects {
+		log.Printf("object type=%s, name=%s\n", o.Type, o.Name)
+	}
+}
+```
 
 ## Author
 
